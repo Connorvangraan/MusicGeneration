@@ -3,6 +3,9 @@ import csv
 import h5py
 import glob
 import tables
+from music21 import converter, tempo, meter, midi
+import ast
+import time
 
 class GenreFinderOld:
     def __init__(self):
@@ -203,6 +206,8 @@ class H5_reader:
         return features
 
 
+
+
 class GenreFinder:
     def __init__(self):
         self.track_genres = {}
@@ -210,6 +215,7 @@ class GenreFinder:
             self.get_genre_data("D:\MusicGenTrainingData\msd_tagtraum_cd1.cls")
             self.get_genre_data("D:\MusicGenTrainingData\msd_tagtraum_cd2.cls")
             self.get_genre_data("D:\MusicGenTrainingData\msd_tagtraum_cd2c.cls")
+            self.get_genre_data("D:\MusicGenTrainingData\msd-topMAGD-genreAssignment.cls.txt")
         else:
             genre_file = open("genres.csv","r")
             csvreader = csv.reader(genre_file, delimiter=',')
@@ -223,7 +229,7 @@ class GenreFinder:
         track_genres_file = file.readlines()[7:]
 
         # Opens the genre file that stores the track ids and their genre
-        genre_file = open("genres.csv", "w", newline='')
+        genre_file = open("genres.csv", "a", newline='')
         writer = csv.writer(genre_file)
 
         # Iterates through the lines in the track/genre list
@@ -252,9 +258,16 @@ class GenreFinder:
         except:
             print("Could not be found")
 
-    def find_most_commmon_genre(self,track_ids):
+    def get_most_commmon_genre(self,track_ids):
+        """
+        Finds the most common genre in the dataset
+        :param track_ids: a list of track id strings
+        :return: string of the most common genre of the songs
+        """
         genre_count = {}
+        matched=0
         missing=0
+
         for id in track_ids:
             #print("Genre:",self.track_genres[id])
             try:
@@ -263,23 +276,85 @@ class GenreFinder:
                     genre_count[genre]+=1
                 except:
                     genre_count[genre]=1
-
+                matched+=1
             except:
                 missing+=1
 
         genre_count={k: v for k, v in sorted(genre_count.items(), key=lambda item: item[1], reverse=True)}
-        print(genre_count)
-        print(missing,"tracks without genre")
 
+        print(genre_count)
+        print(matched,"tracks matched")
+        print(missing,"tracks without genre")
+        return max(genre_count, key=genre_count.get)
+
+
+
+    def get_most_common_timesig(self):
+        pass
+
+
+class Midi_reader:
+    def __init__(self):
+        self.midi = None
+        self.tempo = -1
+        self.timesig = -1
+
+    def set_new_midi(self, file):
+        path = file
+        #print(path)
+        score = converter.parse(path)
+
+        # Iterates through all of the music parts in the song until it successfully finds a tempo, or runs out of tracks
+        for i in range(score.parts):
+            try:
+                foundtempo = False
+                foundtimesig = False
+                part = score.parts[i]
+                elements = part.recurse()
+                for element in elements:
+                    if isinstance(element, tempo.MetronomeMark):
+                        self.tempo = element.number
+                        foundtempo=True
+                    elif isinstance(element, meter.TimeSignature):
+                        self.timesig = element.ratioString
+                        foundtimesig=True
+                    if foundtempo and foundtimesig:
+                        return True
+            except:
+                pass
+        return False
+
+
+    def get_tempo(self):
+        #print(self.tempo)
+        return self.tempo
+
+    def get_timesig(self):
+        #print(self.timesig)
+        return self.timesig
+
+def get_highest_value(dict):
+    """
+    Retrieves highest key value from a dict
+    :param dict:
+    :return:
+    """
+    highest_value = -1
+    highest_key = -1
+    for key,value in dict.items():
+        if value > highest_value:
+            highest_value=value
+            highest_key=key
+    return (highest_key,highest_value)
 
 class File_handler:
     @staticmethod
     def get_all_ids(basedir, ext='.h5'):
         """
-        Collects all song titles and stores them in the titles file
-        Takes a long time to run so
+        Collects all song ids and stores them in the track_ids file
+        Takes a long time to run
         :param ext:
-        :return:
+        :return: a list of all of the track ids
         """
         ids = []
         if not os.path.isfile("track_ids.csv"):
@@ -312,23 +387,91 @@ class File_handler:
         return ids
 
 
-
     @staticmethod
-    def count_all_files(basedir,ext='.h5'):
+    def count_all_files(basedir,ext):
         """
         What do you think it does
         :param basedir:
-        :param ext:
+        :param ext: the file extension that you wish to count the occurencesof
         :return: int number of files
         """
+        start = time.time()
+
+        midi_reader = Midi_reader()
+        tempos = {}
+        timesigs = {}
         cnt = 0
         for root, dirs, files in os.walk(basedir):
-            files = glob.glob(os.path.join(root,'*'+ext))
+            files = glob.glob(os.path.join(root, '*' + ext))
             cnt += len(files)
+            """print("root:",root)
+            print("dirs:",dirs)
+            print("files:",files)
+            print()"""
+
+            if cnt != 0 and cnt % 10000 == 0:
+                print("Files counted:",cnt)
+
+            # This value will track how many midis do not run
+            invalid_midis = 0
+
+            # This checks if the tempos file and the time signatures file exist
+            # These files list the occurrences of their respective values
+            if ext == '.mid' and (not os.path.isfile('tempos.txt') or not os.path.isfile("timesigs.txt")):
+                # This is set to ensure the the processing of the midi worked
+                for file in files:
+                    # set_new_midi will return false if it does not run
+                    run = midi_reader.set_new_midi(file)
+                    if run:
+                        tempo = midi_reader.get_tempo()
+                        try:
+                            tempos[tempo] += 1
+                        except:
+                            tempos[tempo] = 1
+
+                        timesig = midi_reader.get_timesig()
+                        try:
+                            timesigs[timesig] += 1
+                        except:
+                            timesigs[timesig] = 1
+                    else:
+                        invalid_midis += 1
+            # if cnt >= 100:
+            #     break
+
+        print(f"Invalid midis: {invalid_midis}")
+
         print("Files counted:",cnt)
+        if ext == ".mid":
+            if not os.path.isfile('tempos.txt') or not os.path.isfile("timesigs.txt"):
+                bpms = open("tempos.txt","w")
+                bpms.write(str(tempos))
+                bpms.close()
+                times = open("timesigs.txt","w")
+                times.write(str(timesigs))
+                times.close()
+            else:
+                bpms = open("tempos.txt", "r")
+                tempos = ast.literal_eval(bpms.read())
+                bpms.close()
+                times = open("timesigs.txt", "r")
+                timesigs = ast.literal_eval(times.read())
+                times.close()
+            print("Tempos:", len(tempos))
+            print(tempos)
+            print(f"Most common tempo:{get_highest_value(tempos)}")
+            print()
+            print("Times:", len(timesigs))
+            print(timesigs)
+            print(f"Most common time signature{get_highest_value(timesigs)}")
+            print()
+            time_taken = time.time() - start
+            print("Time taken:",time_taken)
         return cnt
 
-
+    @staticmethod
+    def get_most_common_tempo(self):
+        pass
 
 
 def demo():
@@ -340,8 +483,14 @@ def demo():
     genreFinder = GenreFinder()
     genreFinder.get_genre(song_features[0])
 
+def noop(input):
+    pass
 
-genreFinder = GenreFinder()
-File_handler.count_all_files("D:\MusicGenTrainingData\lmd_matched_h5")
-track_ids=File_handler.get_all_ids("D:\MusicGenTrainingData\lmd_matched_h5")
-genreFinder.find_most_commmon_genre(track_ids)
+midi.translate.environLocal.warn = noop
+midi.translate.warnings.warn = noop
+
+#genreFinder = GenreFinder()
+File_handler.count_all_files("D:\MusicGenTrainingData\lmd_matched_h5",'.h5')
+File_handler.count_all_files("D:\MusicGenTrainingData\lmd_matched",'.mid')
+#track_ids=File_handler.get_all_ids("D:\MusicGenTrainingData\lmd_matched_h5")
+#genreFinder.get_most_commmon_genre(track_ids)
