@@ -302,14 +302,16 @@ class Midi_reader:
     def set_new_midi(self, file):
         path = file
         #print(path)
-        score = converter.parse(path)
+        try:
+            score = converter.parse(path)
+        except:
+            return False
 
         # Iterates through all of the music parts in the song until it successfully finds a tempo, or runs out of tracks
-        for i in range(score.parts):
+        for part in score.parts:
             try:
                 foundtempo = False
                 foundtimesig = False
-                part = score.parts[i]
                 elements = part.recurse()
                 for element in elements:
                     if isinstance(element, tempo.MetronomeMark):
@@ -408,9 +410,10 @@ class File_handler:
             print("dirs:",dirs)
             print("files:",files)
             print()"""
-
-            if cnt != 0 and cnt % 10000 == 0:
-                print("Files counted:",cnt)
+            # tracks how many file have been counted so far
+            if cnt != 0 and cnt % 1000 == 0:
+                print("Files counted:", cnt)
+                print("Invalids:",invalid_midis)
 
             # This value will track how many midis do not run
             invalid_midis = 0
@@ -421,6 +424,7 @@ class File_handler:
                 # This is set to ensure the the processing of the midi worked
                 for file in files:
                     # set_new_midi will return false if it does not run
+                    #print(file)
                     run = midi_reader.set_new_midi(file)
                     if run:
                         tempo = midi_reader.get_tempo()
@@ -439,10 +443,12 @@ class File_handler:
             # if cnt >= 100:
             #     break
 
-        print(f"Invalid midis: {invalid_midis}")
+        if ext == ".mid":
+            print(f"Invalid midis: {invalid_midis}")
 
         print("Files counted:",cnt)
         if ext == ".mid":
+            # If there is no tempo or timesig file, then the
             if not os.path.isfile('tempos.txt') or not os.path.isfile("timesigs.txt"):
                 bpms = open("tempos.txt","w")
                 bpms.write(str(tempos))
@@ -457,12 +463,14 @@ class File_handler:
                 times = open("timesigs.txt", "r")
                 timesigs = ast.literal_eval(times.read())
                 times.close()
-            print("Tempos:", len(tempos))
             print(tempos)
+            print("Tempos:", len(tempos))
+            print(f"Quantity Collected:{sum(tempos.values())}")
             print(f"Most common tempo:{get_highest_value(tempos)}")
             print()
-            print("Times:", len(timesigs))
             print(timesigs)
+            print("Times:", len(timesigs))
+            print(f"Quantity Collected:{sum(timesigs.values())}")
             print(f"Most common time signature{get_highest_value(timesigs)}")
             print()
             time_taken = time.time() - start
@@ -486,11 +494,26 @@ def demo():
 def noop(input):
     pass
 
+#"""
 midi.translate.environLocal.warn = noop
 midi.translate.warnings.warn = noop
+#"""
 
 #genreFinder = GenreFinder()
-File_handler.count_all_files("D:\MusicGenTrainingData\lmd_matched_h5",'.h5')
+#File_handler.count_all_files("D:\MusicGenTrainingData\lmd_matched_h5",'.h5')
+
 File_handler.count_all_files("D:\MusicGenTrainingData\lmd_matched",'.mid')
+
 #track_ids=File_handler.get_all_ids("D:\MusicGenTrainingData\lmd_matched_h5")
 #genreFinder.get_most_commmon_genre(track_ids)
+
+
+
+# Testing on one file
+"""
+file_path = r"D:\MusicGenTrainingData\lmd_matched\A\A\B\TRAABVM128F92CA9DC\39d6c288e1bd93d4705e7a86555347da.mid"
+midi = Midi_reader()
+midi.set_new_midi(file_path)
+print(midi.get_tempo())
+print(midi.get_timesig())
+"""
