@@ -1,4 +1,4 @@
-from music21 import converter, note, chord, instrument, tempo
+from music21 import converter, note, chord, instrument, tempo, meter
 
 midipath = r"C:\Users\Connor\PycharmProjects\MusicGeneration\TrainingData\Music(old)\Nas\If_I_Ruled_the_World.mid"
 midi = converter.parse(midipath)
@@ -13,7 +13,10 @@ for inst in instruments:
         if isinstance(n, tempo.MetronomeMark):
             print(n.getQuarterBPM())
         if isinstance(n,note.Note):
-            pass
+            print(n.pitch.ps)
+        if isinstance(n,meter.TimeSignature):
+            print(n.ratioString)
+        #print(n)
             #print(n.volume.velocityScalar)
 
 
@@ -21,3 +24,6 @@ x = None
 
 if x is not None:
     print("boop")
+
+print((10/6)*3)
+print(10/6*3)

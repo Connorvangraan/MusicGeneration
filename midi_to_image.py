@@ -1,6 +1,7 @@
 import numpy as np
-from music21 import converter, note, chord, instrument
+from music21 import *
 from imageio import imwrite
+#from matplotlib import pyplot
 
 midipath = r"C:\Users\Connor\PycharmProjects\MusicGeneration\TrainingData\Music(old)\2_the_Core\Have_a_Nice_Day.mid"
 # lowest_note =
@@ -49,10 +50,12 @@ def get_note_details(elements_to_parse,verbose=False):
 
     return {"pitch": notes, "amps" : amplitudes, "start": start, "dur": durations}
 
+def midi_to_image2():
+    pass
 
 
-def midi_to_image(path):
-    resolution = 0.25
+def midi_to_image2(path):
+    resolution = 1
     lowerBoundNote = 21
     upperBoundNote = 127
 
@@ -105,7 +108,9 @@ def midi_to_image(path):
                 if not start > i * (bar_length+1) or not dur+start < i*bar_length:
                     for j in range(start,start+dur):
                         if j- i*bar_length >= 0 and j - i*bar_length < bar_length:
+                            print(pitch)
                             pixels[pitch-lowerBoundNote, j - i*bar_length] = 255 * amp
+                            #print(pixels)
 
             if not np.all((pixels == 0)): #if matrix contains no noteS (only 0) don't save it
                 imwrite(midipath.split("/")[-1].replace(".mid",f"_{inst}_{i}.png"),pixels.astype(np.uint8))
@@ -114,63 +119,123 @@ def midi_to_image(path):
                 break
 
 
-def midi2image(midi_path, max_repetitions = float("inf"), resolution = 0.25, lowerBoundNote = 21, upperBoundNote = 127, bar_length = 100):
-    mid = converter.parse(midi_path)
+def get_tempo(midi):
+    for instrument_part in instrument.partitionByInstrument(midi):
+        instrument_notes = instrument_part.recurse()
+        for n in instrument_notes:
+            if isinstance(n, tempo.MetronomeMark):
+                return n.getQuarterBPM()
 
-    instruments = instrument.partitionByInstrument(mid)
+def get_time_sig(midi):
+    for instrument_part in instrument.partitionByInstrument(midi):
+        instrument_notes = instrument_part.recurse()
+        for n in instrument_notes:
+            if isinstance(n, meter.TimeSignature):
+                return n.ratioString
+
+
+def midi_to_image(path,upper=127,lower=8):
+    # The following declares the current midi and establishes the tempo and time sig
+    midi = converter.parse(path)
+    tempo = get_tempo(midi)
+    timesig = get_time_sig(midi)
+    image_res = 4
+    print(f"Midi tempo:{tempo} timesig:{timesig}")
+
+    # Calculate bar length for the image size
+    bar_length = 60/tempo * int(timesig[0])
+    print(bar_length)
+    image_length = bar_length*4
 
     data = {}
-
     try:
-        i=0
-        for instrument_i in instruments.parts:
-            notes_to_parse = instrument_i.recurse()
+        i = 0
+        for instrument_part in instrument.partitionByInstrument(midi):
+            instrument_notes = instrument_part.recurse()
+            note_data = get_note_details(instrument_notes)
+            #print(note_data)
 
-            notes_data = get_note_details(notes_to_parse)
-            if len(notes_data["start"]) == 0:
-                continue
-
-            if instrument_i.partName is None:
-                data["instrument_{}".format(i)] = notes_data
-                i+=1
-            else:
-                data[instrument_i.partName] = notes_data
-
+            if len(note_data["start"]) > 0:
+                if instrument_part.partName is None:
+                    if instrument_part.instrumentName is not None:
+                        data[instrument_part.instrumentName] = note_data
+                        print(instrument_part.instrumentName)
+                    else:
+                        data[f"instrument_{i}"] = note_data
+                        i+=1
+                else:
+                    # saves the notes of that instrument to a dictionary value, the key of which is the name of the instrument
+                    data[instrument_part.partName] = note_data
+                    print(instrument_part.partName)
     except:
-        notes_to_parse = mid.flat.notes
-        data["instrument_0"] = get_note_details(notes_to_parse)
+        instrument_notes = midi.flat.notes
+        data["instrument_0"] = get_note_details(instrument_notes)
 
-    for instrument_name, values in data.items():
-        # https://en.wikipedia.org/wiki/Scientific_pitch_notation#Similar_systems
-        print(instrument_name)
+    for inst, score in data.items():
+        pitches = score["pitch"]
+        amplitudes = score["amps"]
+        durations = score["dur"]
+        starts = score["start"]
+        # print(pitches)
+        # print(len(pitches))
+        # print(len(amplitudes))
+        print(len(durations))
+        print(durations)
+        print(starts)
+        print(image_length)
 
-        pitches = values["pitch"]
-        durs = values["dur"]
-        starts = values["start"]
+        # holds our sets of pixels
+        images = []
 
-        index = 0
-        while index < max_repetitions:
-            matrix = np.zeros((upperBoundNote-lowerBoundNote,bar_length))
+        # The size of our image is based on the length of 4 bars and the range of notes included
+        # We first make an array of 0s which represent black pixels
+        pixels = np.zeros(( upper - lower, int(image_length)*image_res))
+        print("f",pixels[0][:])
+        pixels[0][:]=1
+        print(pixels[0][:])
+        print(len(pixels[:][0]))
+        print(pixels)
+        print("notes to write:",len(pitches))
+        i = 0
+        # Currently does one bar without duration
+        while len(pitches)>0:
+            pitch = pitches.pop(0)
+            dur = durations.pop(0)*image_res
+            i= int(starts.pop(0))*image_res
+            # print("i",i)
+            # print("dur",dur)
+            # print("pitch",pitch)
+            images.append(pixels) #remove
 
-
-            for dur, start, pitch, amp in zip(durs, starts, pitches, amp):
-                dur = int(dur/resolution)
-                start = int(start/resolution)
-
-                if not start > index*(bar_length+1) or not dur+start < index*bar_length:
-                    for j in range(start,start+dur):
-                        if j - index*bar_length >= 0 and j - index*bar_length < bar_length:
-                            matrix[pitch-lowerBoundNote,j - index*bar_length] = 255 * amp
-
-            if matrix.any(): # If matrix contains no notes (only zeros) don't save it
-                imwrite(midi_path.split("/")[-1].replace(".mid",f"_{instrument_name}_{index}.png"),matrix.astype(np.uint8))
-                index += 1
+            if i < image_length*image_res:
+                # print(pixels)
+                # print(pixels[:,0])
+                # print(pixels[0])
+                #print("beep")
+                #print(i+int(dur))
+                pixels[pitch][i:int(dur)]=255#amplitudes.pop(0)-
             else:
-                break
+                #print("boop")
+                images.append(pixels)
+                pixels = np.zeros((upper - lower,int(image_length)))
+                i=0
+                #print(pixels)
+                pixels[pitch][i:int(dur)] = 255#amplitudes.pop(0)*255
+
+        break
+    print("im",len(images))
+    print("image1 \n",images[0])
+
+    print(images[0].shape)
+    print(images[0].dtype)
+    #print(images[:][16:20])
+    imwrite("testimage.png", images[0].astype(np.uint8))
+    # pyplot.imshow(images[0])
+    # pyplot.show()
 
 def find_music_qualities(midipath):
     """
-    parse returns a score based on the midi data given, that can then be analysed
+    parse returns a music score based on the midi data given, that can then be analysed
 
     :return:
     """
@@ -193,5 +258,5 @@ def find_music_qualities(midipath):
         #part.show()
 
 
-find_music_qualities(midipath)
+#find_music_qualities(midipath)
 midi_to_image(midipath)

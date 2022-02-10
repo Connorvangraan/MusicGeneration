@@ -75,5 +75,5 @@ def image2midi(image_path):
     midi_stream.write('midi', fp=image_path.split("/")[-1].replace(".png",".mid"))
 
 import sys
-image_path = r"C:\Users\Connor\PycharmProjects\MusicGeneration\TrainingData\Music(old)\Nas\If_I_Ruled_the_World_Drumz_0.png"
+image_path = r"C:\Users\Connor\PycharmProjects\MusicGeneration\TrainingData\Music(old)\2_the_Core\Have_a_Nice_Day_Acoustic Bass_0.png"
 image2midi(image_path)
