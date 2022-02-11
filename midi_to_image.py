@@ -1,7 +1,8 @@
 import numpy as np
 from music21 import *
 from imageio import imwrite
-from fractions import Fraction
+import cv2
+import os
 #from matplotlib import pyplot
 
 midipath = r"C:\Users\Connor\PycharmProjects\MusicGeneration\TrainingData\Music(old)\2_the_Core\Have_a_Nice_Day.mid"
@@ -55,7 +56,7 @@ def midi_to_image2():
     pass
 
 
-def midi_to_image2(path):
+def midi_to_image3(path):
     resolution = 1
     lowerBoundNote = 21
     upperBoundNote = 127
@@ -119,23 +120,7 @@ def midi_to_image2(path):
             else:
                 break
 
-
-def get_tempo(midi):
-    for instrument_part in instrument.partitionByInstrument(midi):
-        instrument_notes = instrument_part.recurse()
-        for n in instrument_notes:
-            if isinstance(n, tempo.MetronomeMark):
-                return n.getQuarterBPM()
-
-def get_time_sig(midi):
-    for instrument_part in instrument.partitionByInstrument(midi):
-        instrument_notes = instrument_part.recurse()
-        for n in instrument_notes:
-            if isinstance(n, meter.TimeSignature):
-                return n.ratioString
-
-
-def midi_to_image3(path,upper=127,lower=8):
+def midi_to_image4(path,upper=127,lower=8):
     # The following declares the current midi and establishes the tempo and time sig
     midi = converter.parse(path)
     tempo = get_tempo(midi)
@@ -235,17 +220,36 @@ def midi_to_image3(path,upper=127,lower=8):
     # pyplot.imshow(images[0])
     # pyplot.show()
 
-def midi_to_image(path,upper=127,lower=8):
+
+
+def get_tempo(midi):
+    for instrument_part in instrument.partitionByInstrument(midi):
+        instrument_notes = instrument_part.recurse()
+        for n in instrument_notes:
+            if isinstance(n, tempo.MetronomeMark):
+                return n.getQuarterBPM()
+
+def get_time_sig(midi):
+    for instrument_part in instrument.partitionByInstrument(midi):
+        instrument_notes = instrument_part.recurse()
+        for n in instrument_notes:
+            if isinstance(n, meter.TimeSignature):
+                return n.ratioString
+
+
+def midi_to_image(path,upper=127,lower=8,verbose=True):
     # The following declares the current midi and establishes the tempo and time sig
     midi = converter.parse(path)
     tempo = get_tempo(midi)
     timesig = get_time_sig(midi)
     image_res = 4
-    print(f"Midi tempo:{tempo} timesig:{timesig}")
+
 
     # Calculate bar length for the image size
     bar_length = 60/tempo * int(timesig[0])
-    print(bar_length)
+
+    print(f"Midi tempo:{tempo} timesig:{timesig} bar_length:{bar_length}")
+    print()
     image_length = bar_length*image_res
 
     data = {}
@@ -260,65 +264,85 @@ def midi_to_image(path,upper=127,lower=8):
                 if instrument_part.partName is None:
                     if instrument_part.instrumentName is not None:
                         data[instrument_part.instrumentName] = note_data
-                        print(instrument_part.instrumentName)
+                        # print(instrument_part.instrumentName)
                     else:
                         data[f"instrument_{i}"] = note_data
                         i+=1
                 else:
                     # saves the notes of that instrument to a dictionary value, the key of which is the name of the instrument
                     data[instrument_part.partName] = note_data
-                    print(instrument_part.partName)
+                    #print(instrument_part.partName)
     except:
         instrument_notes = midi.flat.notes
         data["instrument_0"] = get_note_details(instrument_notes)
 
-    print("im len", image_length)
-
+    #print("im len", image_length)
+    count=0
     for inst, score in data.items():
+        if verbose:
+            print("Drawing:",inst)
         pitches = score["pitch"]
         amplitudes = score["amps"]
         durations = score["dur"]
         starts = score["start"]
-        print(len(durations))
-        print(durations)
-        print(starts)
-        print("end",starts[-1])
-        print("dur",durations[-1])
+
+        # print(len(durations))
+        # print(durations)
+        # print(starts)
+        # print("end",starts[-1])
+        # print("dur",durations[-1])
 
         pixels = np.zeros((upper - lower, int(image_length)))
 
+        #print(starts[100:110])
+
+
         for i in range(len(pitches)):
-            print(durations[i])
+            #break
+            # print("i",i)
+            # print(starts[i])
+            # print(durations[i])
+
             # converting to an int here may prove a problem on fractions. Will have to figure that out later
-            print("FRAC",starts[i])
             start = int(starts[i]*image_res)-1
             dur = int(durations[i]*image_res)
             pitch = pitches[i]
-            print("start",start)
-            print("dur",dur)
+
+            # print("start",start)
+            # print("dur",dur)
+            #print("sts:",starts[100:105])
+
+            new_bar_count=0
             for j in range(start,start+dur):
-                print(j)
+                #print(j)
                 try:
-                    pixels[pitch][j] = 1
+                    pixels[pitch][j] = amplitudes[i] *255
                 except:
                     while True:
                         try:
                             new_bar = np.zeros((upper-lower, int(image_length)))
                             pixels = np.append(pixels,new_bar,axis=1)
-                            pixels[pitch][j] = 1
+                            pixels[pitch][j] = amplitudes[i] *255
+                            new_bar_count=0
                             break
                         except:
                             new_bar = np.zeros((upper - lower, int(image_length)))
                             pixels = np.append(pixels, new_bar, axis=1)
+                            new_bar_count+=1
+                            # if new_bar_count>3:
+                            #     print("HERE")
 
-                    print(pitch)
-                    print(j)
-                    print(pixels.shape)
+                    # print(pitch)
+                    # print(j)
+                    # print(pixels.shape)
 
 
-        print("p:",pixels)
-        imwrite("test2.png",pixels)
-        break
+        #print("p:",pixels)
+        path = r'C:\Users\Connor\PycharmProjects\MusicGeneration\Test'
+        cv2.imwrite(os.path.join(path , f"{inst}.png"), pixels)
+        #imwrite(f"{inst}.png", pixels)
+        # break
+
 
 def find_music_qualities(midipath):
     """
