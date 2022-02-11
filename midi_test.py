@@ -20,10 +20,3 @@ for inst in instruments:
             #print(n.volume.velocityScalar)
 
 
-x = None
-
-if x is not None:
-    print("boop")
-
-print((10/6)*3)
-print(10/6*3)
