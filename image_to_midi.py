@@ -106,7 +106,7 @@ def image_to_midi(folderpath,verbose=True):
             col+=1
             if col == 50:
                 break
-
+        print(col)
         break
 
 
