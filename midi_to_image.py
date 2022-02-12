@@ -337,7 +337,7 @@ def midi_to_image(path,upper=127,lower=8,verbose=True):
                     # print(pixels.shape)
 
 
-        #print("p:",pixels)
+        print("p:",pixels.shape)
         path = r'C:\Users\Connor\PycharmProjects\MusicGeneration\Test'
         cv2.imwrite(os.path.join(path , f"{inst}.png"), pixels)
         #imwrite(f"{inst}.png", pixels)

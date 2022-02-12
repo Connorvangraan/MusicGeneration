@@ -1,6 +1,6 @@
 from PIL import Image
 import numpy as np
-from PIL._imaging import path
+import glob
 from music21 import instrument, note, chord, stream
 
 lowerBoundNote = 21
@@ -74,6 +74,43 @@ def image2midi(image_path):
 
     midi_stream.write('midi', fp=image_path.split("/")[-1].replace(".png",".mid"))
 
+
+def image_to_midi(folderpath,verbose=True):
+    # This is where each instruemnt's score will be
+    data = {}
+
+    # Goes through each of the png files in the directory
+    for imagepath in glob.glob(folderpath+"\*.png"):
+
+        if verbose:
+            print("Scoring:", imagepath)
+
+        # Loads the image into a numpy array called pixels
+        with Image.open(imagepath) as image:
+            pixels = np.frombuffer(image.tobytes(), dtype=np.uint8)
+            pixels = pixels.reshape((image.size[1], image.size[0]))
+            print(pixels.shape)
+
+        # score will contain the music information garnered from the image and will be saved into the data dictionary at the end of processing
+        inst_name = imagepath.split("\\")[0].replace(".png", "")
+        score = {}
+        data[inst_name] = score
+
+        if verbose:
+            print(inst_name)
+
+        #Time to go through the pixel columns
+        col = 0
+        while col<pixels.shape[1]:
+            print(pixels[:,col])
+            col+=1
+            if col == 50:
+                break
+
+        break
+
+
+
 import sys
-image_path = r"C:\Users\Connor\PycharmProjects\MusicGeneration\TrainingData\Music(old)\2_the_Core\Have_a_Nice_Day_Acoustic Bass_0.png"
-image2midi(image_path)
+image_path = r"C:\Users\Connor\PycharmProjects\MusicGeneration\Test"
+image_to_midi(image_path)
