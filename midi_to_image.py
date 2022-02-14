@@ -3,12 +3,7 @@ from music21 import *
 from imageio import imwrite
 import cv2
 import os
-#from matplotlib import pyplot
 
-midipath = r"C:\Users\Connor\PycharmProjects\MusicGeneration\TrainingData\Music(old)\2_the_Core\Have_a_Nice_Day.mid"
-# lowest_note =
-# highest_note =
-# bar_len =
 
 def get_note(note):
     return int(note.pitch.ps)
@@ -51,10 +46,6 @@ def get_note_details(elements_to_parse,verbose=False):
                     amplitudes.append(element.volume.velocityScalar)
 
     return {"pitch": notes, "amps" : amplitudes, "start": start, "dur": durations}
-
-def midi_to_image2():
-    pass
-
 
 def midi_to_image3(path):
     resolution = 1
@@ -227,6 +218,7 @@ def get_tempo(midi):
         instrument_notes = instrument_part.recurse()
         for n in instrument_notes:
             if isinstance(n, tempo.MetronomeMark):
+                print("bpm",n.getQuarterBPM())
                 return n.getQuarterBPM()
 
 def get_time_sig(midi):
@@ -238,7 +230,10 @@ def get_time_sig(midi):
 
 
 def midi_to_image(path,upper=127,lower=8,verbose=True):
+
     # The following declares the current midi and establishes the tempo and time sig
+    print(path)
+    #path = r"C:\Users\Connor\PycharmProjects\MusicGeneration\TrainingData\Music(old)\AC_DC\Back_In_Black.1.mid"
     midi = converter.parse(path)
     tempo = get_tempo(midi)
     timesig = get_time_sig(midi)
@@ -251,6 +246,7 @@ def midi_to_image(path,upper=127,lower=8,verbose=True):
     print(f"Midi tempo:{tempo} timesig:{timesig} bar_length:{bar_length}")
     print()
     image_length = bar_length*image_res
+    image_height = (upper - lower) * image_res
 
     data = {}
     try:
@@ -277,8 +273,12 @@ def midi_to_image(path,upper=127,lower=8,verbose=True):
         data["instrument_0"] = get_note_details(instrument_notes)
 
     #print("im len", image_length)
+
+    x = 0
+
     count=0
     for inst, score in data.items():
+
         if verbose:
             print("Drawing:",inst)
         pitches = score["pitch"]
@@ -286,27 +286,31 @@ def midi_to_image(path,upper=127,lower=8,verbose=True):
         durations = score["dur"]
         starts = score["start"]
 
-        # print(len(durations))
-        # print(durations)
-        # print(starts)
+        print("p",pitches)
+        print("a",amplitudes)
+        print("d",durations)
+        print("s",sorted(starts,reverse=False))
         # print("end",starts[-1])
         # print("dur",durations[-1])
 
-        pixels = np.zeros((upper - lower, int(image_length)))
+        pixels = np.zeros((image_height, int(image_length)))
 
         #print(starts[100:110])
 
 
         for i in range(len(pitches)):
-            #break
             # print("i",i)
             # print(starts[i])
             # print(durations[i])
 
             # converting to an int here may prove a problem on fractions. Will have to figure that out later
-            start = int(starts[i]*image_res)-1
+
+            if x == 0:
+                print(starts[i]*image_res)
+                x+=1
+            start = int(starts[i]*image_res)
             dur = int(durations[i]*image_res)
-            pitch = pitches[i]
+            pitch = int(pitches[i])
 
             # print("start",start)
             # print("dur",dur)
@@ -316,38 +320,39 @@ def midi_to_image(path,upper=127,lower=8,verbose=True):
             for j in range(start,start+dur):
                 #print(j)
                 try:
-                    pixels[pitch][j] = amplitudes[i] *255
-                except:
+                    pixels[pitch-int(image_res/2):pitch+int(image_res/2),j] = amplitudes[i] *255
+                except IndexError:
                     while True:
                         try:
-                            new_bar = np.zeros((upper-lower, int(image_length)))
+                            new_bar = np.zeros((image_height, int(image_length)))
                             pixels = np.append(pixels,new_bar,axis=1)
-                            pixels[pitch][j] = amplitudes[i] *255
+                            pixels[pitch-int(image_res/2):pitch+int(image_res/2),j] = amplitudes[i] *255
                             new_bar_count=0
                             break
                         except:
-                            new_bar = np.zeros((upper - lower, int(image_length)))
+                            new_bar = np.zeros((image_height, int(image_length)))
                             pixels = np.append(pixels, new_bar, axis=1)
                             new_bar_count+=1
                             # if new_bar_count>3:
                             #     print("HERE")
-
-                    # print(pitch)
-                    # print(j)
-                    # print(pixels.shape)
-
+                if x <3:
+                    print(pitch)
+                    print(pixels[:].shape)
+                    print(pixels[:,j].shape)
+                    x+=1
 
         #print("p:",pixels)
-        path = r'C:\Users\Connor\PycharmProjects\MusicGeneration\Test'
-        cv2.imwrite(os.path.join(path , f"{inst}.png"), pixels)
-        #imwrite(f"{inst}.png", pixels)
-        # break
+        path = r'C:\Users\Connor\PycharmProjects\MusicGeneration\ACDCTest'
+        cv2.imwrite(os.path.join(path , f"{inst}{count}.png"), pixels)
+        count+=1
+        if inst == "Electric Guitar":
+            print("broke")
+            break
 
 
 def find_music_qualities(midipath):
     """
     parse returns a music score based on the midi data given, that can then be analysed
-
     :return:
     """
 
@@ -369,12 +374,7 @@ def find_music_qualities(midipath):
         #part.show()
 
 
+# midipath = r"TrainingData/Music(old)/AC_DC/Back_In_Black.1.mid"
+
 #find_music_qualities(midipath)
-midi_to_image(midipath)
-#
-# p = np.zeros((119, 8))
-# print(p)
-# row = np.zeros((119,1))
-# print(row)
-# p = np.append(p,row,axis=1)
-# print(p.shape)
+#midi_to_image(midipath)
