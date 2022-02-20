@@ -101,16 +101,24 @@ def image_to_midi(path,image_res,upper=127,lower=8):
                 amplitudes.append(pixels[pixel,col]/255)
                 pitches.append(pixel)
                 if x == 0:
-                    print(pixels[:,col])
+                    print("px:",pixels[:,col])
+                    print("s:",col/image_res)
+                    print("a:",pixels[pixel,col]/255)
+                    print("d?:",pixels[pixel,col:col+10])
+                    print("cur:",pixels[pixel,col])
+                    print("nex:",pixels[pixel,col+1])
                     x+=1
                 d=1
                 finding_dur = True
                 while finding_dur:
                     try:
                         if pixels[pixel, col + 1] == pixels[pixel, col]:
+                            print("beep")
                             pixels[pixel, col + 1] = 0
                             d+=1
+                            print("adding d",pixels[pixel, col: col+ 10])
                         else:
+                            print("boop")
                             finding_dur=False
                     except:
                         finding_dur=False
@@ -151,7 +159,7 @@ def image_to_midi(path,image_res,upper=127,lower=8):
     return score
 
 
-def image_to_song(path,image_res):
+def image_to_song(path,image_res=1):
     data = {}
     for image_path in glob.glob(path+"/*.png"):
         instrument_name = image_path.split("\\")[-1].replace(".png", "")
@@ -163,6 +171,6 @@ def image_to_song(path,image_res):
 
 path = r"C:\Users\Connor\PycharmProjects\MusicGeneration\TrainingData\Music(old)\AC_DC\Back_In_Black.1.mid"
 # path = r"ACDCTest/Electric Guitar0.mid"
-midi_to_image.midi_to_image(path)
+#midi_to_image.midi_to_image(path,image_res=4)
 folder_path = r"ACDCTest/"
 image_to_song(folder_path,4)

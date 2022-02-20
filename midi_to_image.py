@@ -53,7 +53,7 @@ def midi_to_image3(path):
     upperBoundNote = 127
 
     reps = float("inf")
-    midi = converter.parse(midipath)
+    midi = converter.parse(path)
     data = {}
 
     # This whole try and except section involves saving each instrument into a dictionary. Each instrument is given a key "instrument_i" wherein i is count
@@ -106,7 +106,7 @@ def midi_to_image3(path):
                             #print(pixels)
 
             if not np.all((pixels == 0)): #if matrix contains no noteS (only 0) don't save it
-                imwrite(midipath.split("/")[-1].replace(".mid",f"_{inst}_{i}.png"),pixels.astype(np.uint8))
+                imwrite(path.split("/")[-1].replace(".mid",f"_{inst}_{i}.png"),pixels.astype(np.uint8))
                 i+=1
             else:
                 break
@@ -229,7 +229,7 @@ def get_time_sig(midi):
                 return n.ratioString
 
 
-def midi_to_image(path,upper=127,lower=8,verbose=True):
+def midi_to_image(path,image_res=4,upper=127,lower=8,verbose=True):
 
     # The following declares the current midi and establishes the tempo and time sig
     print(path)
@@ -237,7 +237,6 @@ def midi_to_image(path,upper=127,lower=8,verbose=True):
     midi = converter.parse(path)
     tempo = get_tempo(midi)
     timesig = get_time_sig(midi)
-    image_res = 4
 
 
     # Calculate bar length for the image size
@@ -248,6 +247,7 @@ def midi_to_image(path,upper=127,lower=8,verbose=True):
     image_length = bar_length*image_res
     image_height = (upper - lower) * image_res
 
+    # Retrieval
     data = {}
     try:
         i = 0
@@ -274,11 +274,12 @@ def midi_to_image(path,upper=127,lower=8,verbose=True):
 
     #print("im len", image_length)
 
+    print("IR:",image_res)
+    # Writing
+    # x is just for printing sometimes
     x = 0
-
     count=0
     for inst, score in data.items():
-
         if verbose:
             print("Drawing:",inst)
         pitches = score["pitch"]
@@ -320,13 +321,24 @@ def midi_to_image(path,upper=127,lower=8,verbose=True):
             for j in range(start,start+dur):
                 #print(j)
                 try:
-                    pixels[pitch-int(image_res/2):pitch+int(image_res/2),j] = amplitudes[i] *255
+                    pixels[pitch, j] = amplitudes[i] * 255
+                    #print("Range:",range( pitch-int(image_res/2),pitch+int(image_res/2)+1 ))
+                    # if image_res > 1:
+                    #     pixels[pitch-int(image_res/2):pitch+int(image_res/2)+1,j] = amplitudes[i] *255
+                    # else:
+                    #     print("else")
+                    #     pixels[pitch, j] = amplitudes[i] * 255
+
                 except IndexError:
                     while True:
                         try:
                             new_bar = np.zeros((image_height, int(image_length)))
                             pixels = np.append(pixels,new_bar,axis=1)
-                            pixels[pitch-int(image_res/2):pitch+int(image_res/2),j] = amplitudes[i] *255
+                            pixels[pitch, j] = amplitudes[i] * 255
+                            # if image_res > 1:
+                            #     pixels[pitch-int(image_res/2):pitch+int(image_res/2)+1,j] = amplitudes[i] *255
+                            # else:
+                            #     pixels[pitch, j] = amplitudes[i] * 255
                             new_bar_count=0
                             break
                         except:
