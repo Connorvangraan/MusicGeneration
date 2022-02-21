@@ -164,7 +164,14 @@ def midi_to_image(path,image_res=4,upper=127,lower=8,verbose=True):
                     # pixels[pitch, j] = amplitudes[i] * 255
                     #print("Range:",range( pitch-int(image_res/2),pitch+int(image_res/2)+1 ))
                     if image_res > 1:
-                        pixels[pitch-int(image_res/2):pitch+int(image_res/2)+1,j] = amplitudes[i] *255
+                        beg = (pitch * image_res) - int(image_res / 2)
+                        end = (pitch * image_res) + int(image_res / 2) + 1
+                        # print("pitch",pitch)
+                        # print("beg",beg)
+                        # print("end",end)
+                        # print("length",end-beg)
+                        pixels[beg:end,j] = amplitudes[i] *255
+
                     else:
                         # print("else")
                         pixels[pitch, j] = amplitudes[i] * 255
@@ -176,8 +183,8 @@ def midi_to_image(path,image_res=4,upper=127,lower=8,verbose=True):
                             pixels = np.append(pixels,new_bar,axis=1)
                             #pixels[pitch, j] = amplitudes[i] * 255
                             if image_res > 1:
-                                beg = pitch - int(image_res / 2)
-                                end = pitch+int(image_res/2)+1
+                                beg = (pitch*image_res) - int(image_res / 2)
+                                end = (pitch*image_res)+int(image_res/2)+1
                                 # print("pit",pitch)
                                 # print("beg",beg)
                                 # print("end",end)
