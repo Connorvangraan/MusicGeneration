@@ -63,12 +63,79 @@ def get_time_sig(midi):
             if isinstance(n, meter.TimeSignature):
                 return n.ratioString
 
+def create_image(inst,score,image_data,dest_path,count=0,verbose=False):
+    scale = 4
+    image_res = image_data[0]
+    image_height = image_data[1]
+    image_length = image_data[2]
+    print("Image_res",image_res)
+    print("IH", image_height)
+    print("IL", image_length)
 
-def midi_to_image(path,image_res=4,upper=127,lower=8,verbose=True):
+    if verbose:
+        print("Drawing:", inst)
 
+    pitches = score["pitch"]
+    amplitudes = score["amps"]
+    durations = score["dur"]
+    starts = score["start"]
+
+    if verbose:
+        print("p", pitches)
+        print("a", amplitudes)
+        print("d", durations)
+        print("s", sorted(starts, reverse=False))
+        # print("end",starts[-1])
+        # print("dur",durations[-1])
+
+    pixels = np.zeros((image_height, int(image_length)))
+
+    # print(starts[100:110])
+
+    for i in range(len(pitches)):
+        # converting to an int here may prove a problem on fractions. Will have to figure that out later
+        start = int(starts[i] * image_res * scale)
+        dur = int(durations[i] * image_res * scale)
+        pitch = int(pitches[i])
+
+        new_bar_count = 0
+        for j in range(start, start + dur):
+            try:
+                if image_res > 1:
+                    beg = (pitch * image_res) - int(image_res / 2)
+                    end = (pitch * image_res) + int(image_res / 2) + 1
+                    pixels[beg:end, j] = amplitudes[i] * 255
+
+                else:
+                    pixels[pitch, j] = amplitudes[i] * 255
+
+            except IndexError:
+                while True:
+                    try:
+                        new_bar = np.zeros((image_height, int(image_length)))
+                        pixels = np.append(pixels, new_bar, axis=1)
+                        if image_res > 1:
+                            beg = (pitch * image_res) - int(image_res / 2)
+                            end = (pitch * image_res) + int(image_res / 2) + 1
+                            pixels[beg:end, j] = amplitudes[i] * 255
+                        else:
+                            pixels[pitch, j] = amplitudes[i] * 255
+                        new_bar_count = 0
+                        break
+                    except:
+                        new_bar = np.zeros((image_height, int(image_length)))
+                        pixels = np.append(pixels, new_bar, axis=1)
+                        new_bar_count += 1
+
+    cv2.imwrite(os.path.join(dest_path, f"{inst}{count}.png"), pixels)
+    print("Written:", inst, "image")
+    print()
+
+
+def midi_to_image(path,image_res=4,upper=127,lower=8,verbose=False,dest_path=None,specific_inst=""):
+    if dest_path is None:
+        dest_path=path
     # The following declares the current midi and establishes the tempo and time sig
-    print(path)
-    #path = r"C:\Users\Connor\PycharmProjects\MusicGeneration\TrainingData\Music(old)\AC_DC\Back_In_Black.1.mid"
     midi = converter.parse(path)
     tempo = get_tempo(midi)
     timesig = get_time_sig(midi)
@@ -77,8 +144,10 @@ def midi_to_image(path,image_res=4,upper=127,lower=8,verbose=True):
     # Calculate bar length for the image size
     bar_length = 60/tempo * int(timesig[0])
 
-    print(f"Midi tempo:{tempo} timesig:{timesig} bar_length:{bar_length}")
-    print()
+    if verbose:
+        print("Processing midi_____")
+        print(f"Midi tempo:{tempo} timesig:{timesig} bar_length:{bar_length}")
+
     # we multiply the bar length by 4 and the image resolution in order to scale it up
     image_length = bar_length*image_res * scale
     image_height = (upper - lower) * image_res
@@ -108,111 +177,24 @@ def midi_to_image(path,image_res=4,upper=127,lower=8,verbose=True):
         instrument_notes = midi.flat.notes
         data["instrument_0"] = get_note_details(instrument_notes)
 
-    #print("im len", image_length)
-
-    print("IR:",image_res)
-    print("IL:",image_length)
-    print("IH:",image_height)
-    print("BL:",bar_length)
+    # if verbose:
+    #     print("IR:",image_res)
+    #     print("IL:",image_length)
+    #     print("IH:",image_height)
+    #     print("BL:",bar_length)
 
     # Writing to image section
     # x is just for printing sometimes
     x = 0
     count=0
+    print("si:",data[specific_inst])
+
     for inst, score in data.items():
-        if verbose:
-            print("Drawing:",inst)
-        pitches = score["pitch"]
-        amplitudes = score["amps"]
-        durations = score["dur"]
-        starts = score["start"]
+        image_data = (image_res, image_height, image_length)
 
-        print("p",pitches)
-        print("a",amplitudes)
-        print("d",durations)
-        print("s",sorted(starts,reverse=False))
-        # print("end",starts[-1])
-        # print("dur",durations[-1])
-
-        pixels = np.zeros((image_height, int(image_length)))
-
-        #print(starts[100:110])
-
-
-        for i in range(len(pitches)):
-            # print("i",i)
-            # print(starts[i])
-            # print(durations[i])
-
-            # converting to an int here may prove a problem on fractions. Will have to figure that out later
-
-            if x == 0:
-                print(starts[i]*image_res)
-                x+=1
-            start = int(starts[i]*image_res * scale )
-            dur = int(durations[i]*image_res * scale)
-            pitch = int(pitches[i])
-
-            # print("start",start)
-            # print("dur",dur)
-            #print("sts:",starts[100:105])
-
-            new_bar_count=0
-            for j in range(start,start+dur):
-                #print(j)
-                try:
-                    # pixels[pitch, j] = amplitudes[i] * 255
-                    #print("Range:",range( pitch-int(image_res/2),pitch+int(image_res/2)+1 ))
-                    if image_res > 1:
-                        beg = (pitch * image_res) - int(image_res / 2)
-                        end = (pitch * image_res) + int(image_res / 2) + 1
-                        # print("pitch",pitch)
-                        # print("beg",beg)
-                        # print("end",end)
-                        # print("length",end-beg)
-                        pixels[beg:end,j] = amplitudes[i] *255
-
-                    else:
-                        # print("else")
-                        pixels[pitch, j] = amplitudes[i] * 255
-
-                except IndexError:
-                    while True:
-                        try:
-                            new_bar = np.zeros((image_height, int(image_length)))
-                            pixels = np.append(pixels,new_bar,axis=1)
-                            #pixels[pitch, j] = amplitudes[i] * 255
-                            if image_res > 1:
-                                beg = (pitch*image_res) - int(image_res / 2)
-                                end = (pitch*image_res)+int(image_res/2)+1
-                                # print("pit",pitch)
-                                # print("beg",beg)
-                                # print("end",end)
-                                # print("len",end-beg)
-                                pixels[beg:end,j] = amplitudes[i] *255
-                            else:
-                                pixels[pitch, j] = amplitudes[i] * 255
-                            new_bar_count=0
-                            break
-                        except:
-                            new_bar = np.zeros((image_height, int(image_length)))
-                            pixels = np.append(pixels, new_bar, axis=1)
-                            new_bar_count+=1
-                            # if new_bar_count>3:
-                            #     print("HERE")
-                if x <3:
-                    print(pitch)
-                    print(pixels[:].shape)
-                    print(pixels[:,j].shape)
-                    x+=1
-
-        #print("p:",pixels)
-        path = r'C:\Users\Connor\PycharmProjects\MusicGeneration\ACDCTest'
-        cv2.imwrite(os.path.join(path , f"{inst}{count}.png"), pixels)
+        create_image(inst,score,image_data,dest_path,count=count,verbose=verbose)#,score,verbose,image_res,dest_path,count=0
         count+=1
-        if inst == "Electric Guitar":
-            print("broke")
-            break
+
 
 
 def find_music_qualities(midipath):

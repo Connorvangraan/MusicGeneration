@@ -23,20 +23,20 @@ def updateNotes(newNotes,prevNotes):
     return res
 
 
-def image_to_midi(path,image_res=1,upper=127,lower=8):
+def image_to_midi(path,image_res=1,upper=127,lower=8,verbose=False):
     scale = 4
     instrument_name = path.split("\\")[-1].replace(".png","")
-    print("Scoring:",instrument_name)
+    print("Scoring_____")
+    print("Instrument piece:",instrument_name)
+
     score = {}
     pitches = []
     amplitudes = []
     durations = []
     starts = []
-    print()
     with Image.open(path) as image:
         pixels = np.frombuffer(image.tobytes(), dtype=np.uint8)
         pixels = pixels.reshape((image.size[1], image.size[0]))
-    print(pixels.shape)
 
     x = 0
     col = 0
@@ -44,22 +44,22 @@ def image_to_midi(path,image_res=1,upper=127,lower=8):
         pixel = 0
         while pixel < len(pixels[:,col]):
             if pixels[pixel,col] > 0:
-                # print(pixels[:,col])
-                # print(pixels[pixel,col])
                 starts.append(col/image_res/scale)
                 amplitudes.append(pixels[pixel,col]/255)
+
                 # downscales the pitch back down using the image resolution
                 pitch = (pixel+image_res/2)/image_res
                 pitches.append(pitch)
 
-                if x == 0:
-                    print("px:",pixels[:,col])
-                    print("s:",col/image_res/scale)
-                    print("a:",pixels[pixel,col]/255)
-                    print("d?:",pixels[pixel,col:col+10])
-                    print("cur:",pixels[pixel,col])
-                    print("nex:",pixels[pixel,col+1])
-                    x+=1
+                # if x == 0:
+                #     print("px:",pixels[:,col])
+                #     print("s:",col/image_res/scale)
+                #     print("a:",pixels[pixel,col]/255)
+                #     print("d?:",pixels[pixel,col:col+10])
+                #     print("cur:",pixels[pixel,col])
+                #     print("nex:",pixels[pixel,col+1])
+                #     x+=1
+
                 d=1
                 finding_dur = True
                 while finding_dur:
@@ -73,6 +73,7 @@ def image_to_midi(path,image_res=1,upper=127,lower=8):
                     except:
                         finding_dur=False
                 durations.append(d)
+
                 # moves pixel pointer past the current note
                 pixel += image_res
             pixel+=1
@@ -95,7 +96,7 @@ def image_to_midi(path,image_res=1,upper=127,lower=8):
         n.offset = starts[i]
         notes.append(n)
         i+=1
-    print("open midi stream")
+
     midi_stream = stream.Stream(notes)
     # tem = tempo.MetronomeMark(95)
     # tem.setQuarterBPM(95)
@@ -105,27 +106,28 @@ def image_to_midi(path,image_res=1,upper=127,lower=8):
     # print(midi_stream.timeSignature)
     # midi_stream.quarterLength = 95 #tempo.MetronomeMark(95)
     # print(midi_stream.quarterLength)
-    print("writing midi")
+    print("Writing midi...")
     midi_stream.write('midi', fp=path.split("/")[-1].replace(".png", ".mid"))
     print("midi written")
     return score
 
 
-def image_to_song(path,image_res=1):
+def image_to_song(path,image_res=1,verbose=False):
     data = {}
     for image_path in glob.glob(path+"/*.png"):
         instrument_name = image_path.split("\\")[-1].replace(".png", "")
-        if instrument_name == "Electric Guitar0":
-            # print(image_path)
-            data[instrument_name] = image_to_midi(image_path,image_res)
-            break
-    print("end")
+        print("Instrument:",instrument_name)
+        data[instrument_name] = image_to_midi(image_path, image_res,verbose=verbose)
 
 
-path = r"C:\Users\Connor\PycharmProjects\MusicGeneration\TrainingData\Music(old)\AC_DC\Back_In_Black.1.mid"
-# path = r"ACDCTest/Electric Guitar0.mid"
-ir = 2
-midi_to_image.midi_to_image(path,image_res=ir)
-folder_path = r"ACDCTest/"
-image_to_song(folder_path,image_res=ir)
+def run_test(artist="AC_DC", song="Back_In_Black.1",ir=2):
+    print("_____Running Conversion Test_____")
+    print(f"Converting: {song} by {artist}")
+    print("Image resolution:",ir)
+    filename = artist+"\\"+song+".mid"
+    path = "C:\\Users\\Connor\\PycharmProjects\\MusicGeneration\\TrainingData\\Music(old)\\"+filename
+    midi_to_image.midi_to_image(path,image_res=ir,verbose=True,dest_path= r'C:\Users\Connor\PycharmProjects\MusicGeneration\ACDCTest',specific_inst="Electric Guitar")
+    folder_path = r"ACDCTest/"
+    image_to_song(folder_path,image_res=ir,verbose=True)
+    print("_____End of test_____")
 
