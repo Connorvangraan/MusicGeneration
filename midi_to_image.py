@@ -187,13 +187,16 @@ def midi_to_image(path,image_res=4,upper=127,lower=8,verbose=False,dest_path=Non
     # x is just for printing sometimes
     x = 0
     count=0
-    print("si:",data[specific_inst])
+    # print("si:",data[specific_inst])
 
     for inst, score in data.items():
-        image_data = (image_res, image_height, image_length)
-
-        create_image(inst,score,image_data,dest_path,count=count,verbose=verbose)#,score,verbose,image_res,dest_path,count=0
-        count+=1
+        # If a specific instrument has been stated then only an image of that is created
+        if specific_inst!="" and specific_inst!=inst:
+            continue
+        else:
+            image_data = (image_res, image_height, image_length)
+            create_image(inst,score,image_data,dest_path,count=count,verbose=verbose)#,score,verbose,image_res,dest_path,count=0
+            count+=1
 
 
 
