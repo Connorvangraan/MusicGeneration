@@ -1,3 +1,4 @@
+import music21
 import numpy as np
 from music21 import *
 from imageio import imwrite
@@ -53,24 +54,27 @@ def get_tempo(midi):
         instrument_notes = instrument_part.recurse()
         for n in instrument_notes:
             if isinstance(n, tempo.MetronomeMark):
-                print("bpm",n.getQuarterBPM())
+                # print("bpm",n.getQuarterBPM())
                 return n.getQuarterBPM()
+    return 120
 
 def get_time_sig(midi):
     for instrument_part in instrument.partitionByInstrument(midi):
         instrument_notes = instrument_part.recurse()
+        #print("timesig:",instrument_part)
         for n in instrument_notes:
+            #print(n)
             if isinstance(n, meter.TimeSignature):
+                #print(n.ratioString)
                 return n.ratioString
+    return [4,4]
 
-def create_image(inst,score,image_data,dest_path,count=0,verbose=False):
+def create_image(inst, score, image_data, dest_path, count=0, verbose=False):
     scale = 4
     image_res = image_data[0]
     image_height = image_data[1]
     image_length = image_data[2]
-    print("Image_res",image_res)
-    print("IH", image_height)
-    print("IL", image_length)
+
 
     if verbose:
         print("Drawing:", inst)
@@ -127,16 +131,35 @@ def create_image(inst,score,image_data,dest_path,count=0,verbose=False):
                         pixels = np.append(pixels, new_bar, axis=1)
                         new_bar_count += 1
 
-    cv2.imwrite(os.path.join(dest_path, f"{inst}{count}.png"), pixels)
-    print("Written:", inst, "image")
-    print()
+    # check if the destination directory exists, if not then make it
+    if not os.path.exists(dest_path):
+        os.makedirs(dest_path)
 
+    # creates the midi image at the destination
+    status = cv2.imwrite(os.path.join(dest_path, f"{inst}{count}.png"), pixels)
+    if verbose:
+        print("Written:", inst, "image to",dest_path)
+        print()
+    return status
 
-def midi_to_image(path,image_res=4,upper=127,lower=8,verbose=False,dest_path=None,specific_inst=""):
+def midi_to_image(path, image_res=4, upper=127, lower=8, verbose=False, dest_path=None, specific_inst="",count=0, silence_warning=True):
+    #print("___MIDI TO IMAGE___")
     if dest_path is None:
-        dest_path=path
+        dest_path = path
     # The following declares the current midi and establishes the tempo and time sig
-    midi = converter.parse(path)
+    # print("Getting:",path)
+
+    # overwrites a warning produced by some midi files about empty chords being treated as grace
+    if silence_warning:
+        def noop(input):
+            pass
+        music21.midi.translate.environLocal.warn = noop
+    try:
+        midi = converter.parse(path)
+    except:
+        return False
+    if instrument.partitionByInstrument(midi) is None:
+        return False
     tempo = get_tempo(midi)
     timesig = get_time_sig(midi)
     scale = 4
@@ -157,6 +180,19 @@ def midi_to_image(path,image_res=4,upper=127,lower=8,verbose=False,dest_path=Non
     try:
         i = 0
         for instrument_part in instrument.partitionByInstrument(midi):
+            # If a specific instrument has been stated then only an image of that is created
+            if specific_inst != "" and specific_inst.lower() not in instrument_part.partName.lower():
+                # print(instrument_part.partName.lower())
+                # print("continuing")
+                continue
+            # print(specific_inst)
+            # print(instrument_part.partName.lower())
+            # print("match")
+            # print()
+
+            if verbose:
+                print("ip",instrument_part)
+
             instrument_notes = instrument_part.recurse()
             note_data = get_note_details(instrument_notes)
             #print(note_data)
@@ -165,15 +201,20 @@ def midi_to_image(path,image_res=4,upper=127,lower=8,verbose=False,dest_path=Non
                 if instrument_part.partName is None:
                     if instrument_part.instrumentName is not None:
                         data[instrument_part.instrumentName] = note_data
-                        # print(instrument_part.instrumentName)
+                        print(instrument_part.instrumentName)
                     else:
                         data[f"instrument_{i}"] = note_data
                         i+=1
                 else:
                     # saves the notes of that instrument to a dictionary value, the key of which is the name of the instrument
                     data[instrument_part.partName] = note_data
-                    #print(instrument_part.partName)
+                    if verbose:
+                        print("pn", instrument_part.partName)
+            else:
+                if verbose:
+                    print(instrument_part,"failed")
     except:
+        print("Exception")
         instrument_notes = midi.flat.notes
         data["instrument_0"] = get_note_details(instrument_notes)
 
@@ -184,20 +225,22 @@ def midi_to_image(path,image_res=4,upper=127,lower=8,verbose=False,dest_path=Non
     #     print("BL:",bar_length)
 
     # Writing to image section
-    # x is just for printing sometimes
-    x = 0
-    count=0
-    # print("si:",data[specific_inst])
-
+    status = False
     for inst, score in data.items():
+        # print(inst.lower())
+        # print("match",specific_inst.lower() in inst.lower())
+
+        if specific_inst.lower() in inst.lower():
+            inst=specific_inst
+
         # If a specific instrument has been stated then only an image of that is created
-        if specific_inst!="" and specific_inst!=inst:
+        if specific_inst != "" and specific_inst != inst:
             continue
         else:
             image_data = (image_res, image_height, image_length)
-            create_image(inst,score,image_data,dest_path,count=count,verbose=verbose)#,score,verbose,image_res,dest_path,count=0
+            status = create_image(inst,score,image_data,dest_path,count=count,verbose=verbose)#,score,verbose,image_res,dest_path,count=0
             count+=1
-
+    return status
 
 
 def find_music_qualities(midipath):
@@ -215,16 +258,16 @@ def find_music_qualities(midipath):
     # This breaks down the track into instrumental parts
     i = 0
     for part in score.parts:
-        print("Stream:",part)
+        #print("Stream:",part)
         print("Name:",part.partName)
-        print("RecursiveIterator:",part.recurse())
-        print(f"Getting elements of: {part.partName}")
+        #print("RecursiveIterator:",part.recurse())
+        #print(f"Getting elements of: {part.partName}")
         notes = get_note_details(part.recurse())
         i+=1
         #part.show()
 
 
-# midipath = r"TrainingData/Music(old)/AC_DC/Back_In_Black.1.mid"
+midipath = r"TrainingData/Music(old)/AC_DC/Back_In_Black.1.mid"
 
-#find_music_qualities(midipath)
+# find_music_qualities(midipath)
 #midi_to_image(midipath)

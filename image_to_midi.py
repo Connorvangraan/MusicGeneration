@@ -23,7 +23,7 @@ def updateNotes(newNotes,prevNotes):
     return res
 
 
-def image_to_midi(path,image_res=1,upper=127,lower=8,verbose=False):
+def image_to_midi(path,image_res=4,upper=127,lower=8,verbose=False):
     scale = 4
     instrument_name = path.split("\\")[-1].replace(".png","")
     print("Scoring_____")
@@ -37,6 +37,7 @@ def image_to_midi(path,image_res=1,upper=127,lower=8,verbose=False):
     with Image.open(path) as image:
         pixels = np.frombuffer(image.tobytes(), dtype=np.uint8)
         pixels = pixels.reshape((image.size[1], image.size[0]))
+
 
     x = 0
     col = 0
