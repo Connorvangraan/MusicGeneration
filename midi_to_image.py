@@ -214,7 +214,7 @@ def midi_to_image(path, image_res=4, upper=127, lower=8, verbose=False, dest_pat
                 if verbose:
                     print(instrument_part,"failed")
     except:
-        print("Exception")
+        # print("Exception")
         instrument_notes = midi.flat.notes
         data["instrument_0"] = get_note_details(instrument_notes)
 
@@ -229,17 +229,20 @@ def midi_to_image(path, image_res=4, upper=127, lower=8, verbose=False, dest_pat
     for inst, score in data.items():
         # print(inst.lower())
         # print("match",specific_inst.lower() in inst.lower())
+        #print(inst)
+        image_data = (image_res, image_height, image_length)
+        status = create_image(inst, score, image_data, dest_path, count=count,
+                              verbose=verbose)  # ,score,verbose,image_res,dest_path,count=0
+        count += 1
+        ## This was to make sure that only the right instrument is recorded but the check was moved earlier in the function
+        # if specific_inst.lower() in inst.lower():
+        #     inst=specific_inst
+        #
+        # # If a specific instrument has been stated then only an image of that is created
+        # if specific_inst != "" and specific_inst != inst:
+        #     continue
+        # else:
 
-        if specific_inst.lower() in inst.lower():
-            inst=specific_inst
-
-        # If a specific instrument has been stated then only an image of that is created
-        if specific_inst != "" and specific_inst != inst:
-            continue
-        else:
-            image_data = (image_res, image_height, image_length)
-            status = create_image(inst,score,image_data,dest_path,count=count,verbose=verbose)#,score,verbose,image_res,dest_path,count=0
-            count+=1
     return status
 
 
@@ -270,4 +273,4 @@ def find_music_qualities(midipath):
 midipath = r"TrainingData/Music(old)/AC_DC/Back_In_Black.1.mid"
 
 # find_music_qualities(midipath)
-#midi_to_image(midipath)
+#midi_to_image(midipath, dest_path="ACDCTest", verbose=True)

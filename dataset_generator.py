@@ -83,11 +83,30 @@ def create_drum_images_zipped(path, dest):
 
     print(count,"files processed out of",total_count)
 
+import re
+
 def create_images(path, dest,instruments=[]):
     midis = []
     failed = []
-    count = 0
+    folder_count = 0
+    folder_total = len(os.listdir(path))
+
+    print(len(os.listdir(dest)))
+    index = 0
+    for file in os.listdir(dest):
+        n = int(re.findall("[0-9]+", file)[0])
+        if n > index:
+            index = n
+    count=index+1
+    print(count)
+
     for subdir, dirs, files in os.walk(path):
+        dirs.reverse()
+
+        if len(subdir.split("\\")) == 3:
+            folder_count+=1
+            print(f"{folder_count}/{folder_total} folders processed")
+
         for file in files:
             os.path.join(subdir, file)
             # print(subdir,file)
@@ -116,8 +135,10 @@ def create_images(path, dest,instruments=[]):
     file.close()
 
 
-def create_image_dataset(path, dest, instruments):
+def create_image_dataset(path, dest, zipname, instruments):
     create_images(path, dest, instruments)
+    dest += "/"+zipname
+    print()
     count = 0
     total_count = 0
     with ZipFile(path, 'r') as zipObj:
@@ -140,6 +161,17 @@ def create_image_dataset(path, dest, instruments):
                 if total_count % 100 == 0:
                     print(total_count, "encountered")
 
+
+def create_image_dataset(path, dest, zipname, instruments):
+    print(f"__Making {zipname}__")
+    create_images(path, dest, instruments)
+    zipObj = ZipFile("TrainingData/"+zipname, 'w')
+    # Add multiple files to the zip
+    for image in os.listdir(dest):
+        zipObj.write(dest+"/"+image)
+    # close the Zip File
+    zipObj.close()
+
 #path = "TrainingData/Music(old)"
 path = r"D:\MusicGenTrainingData\lmd_matched"
 # dest = "DrumTracksBig"
@@ -154,18 +186,21 @@ if bass:
     path = r"D:\MusicGenTrainingData\lmd_matched"
     dest = "BassTracks"
     instruments = ["bass"]
-    create_image_dataset(path, dest, instruments)
+    create_image_dataset(path, dest, "basstracks.zip", instruments)
+    print("Images generated:",len(os.listdir(dest)))
 
 
 if guitar:
     path = r"D:\MusicGenTrainingData\lmd_matched"
     dest = "GuitarTracks"
-    instruments = ["guitar"]
-    create_image_dataset(path, dest, instruments)
+    instruments = ["guitar","strings"]
+    create_image_dataset(path, dest, "guitartracks.zip", instruments)
+    print("Images generated:", len(os.listdir(dest)))
 
 
 if synth:
     path = r"D:\MusicGenTrainingData\lmd_matched"
     dest = "SynthTracks"
-    instruments = ["synth","keyboard"]
-    create_image_dataset(path, dest, instruments)
+    instruments = ["synth","keyboard", "piano"]
+    create_image_dataset(path, dest, "synthtracks.zip", instruments)
+    print("Images generated:", len(os.listdir(dest)))

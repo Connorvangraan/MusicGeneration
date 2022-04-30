@@ -1,3 +1,5 @@
+import os
+
 from PIL import Image
 import numpy as np
 import glob
@@ -23,93 +25,117 @@ def updateNotes(newNotes,prevNotes):
     return res
 
 
-def image_to_midi(path,image_res=4,upper=127,lower=8,verbose=False):
-    scale = 4
-    instrument_name = path.split("\\")[-1].replace(".png","")
-    print("Scoring_____")
-    print("Instrument piece:",instrument_name)
-
-    score = {}
-    pitches = []
-    amplitudes = []
-    durations = []
-    starts = []
-    with Image.open(path) as image:
-        pixels = np.frombuffer(image.tobytes(), dtype=np.uint8)
-        pixels = pixels.reshape((image.size[1], image.size[0]))
-
-
-    x = 0
-    col = 0
-    while col < pixels.shape[1]:
-        pixel = 0
-        while pixel < len(pixels[:,col]):
-            if pixels[pixel,col] > 0:
-                starts.append(col/image_res/scale)
-                amplitudes.append(pixels[pixel,col]/255)
-
-                # downscales the pitch back down using the image resolution
-                pitch = (pixel+image_res/2)/image_res
-                pitches.append(pitch)
-
-                # if x == 0:
-                #     print("px:",pixels[:,col])
-                #     print("s:",col/image_res/scale)
-                #     print("a:",pixels[pixel,col]/255)
-                #     print("d?:",pixels[pixel,col:col+10])
-                #     print("cur:",pixels[pixel,col])
-                #     print("nex:",pixels[pixel,col+1])
-                #     x+=1
-
-                d=1
-                finding_dur = True
-                while finding_dur:
-                    try:
-                        if pixels[pixel, col + 1] == pixels[pixel, col]:
-                            pixels[pixel, col + 1] = 0
-                            d+=1
-                        else:
-                            finding_dur=False
-                            pixels[pixel, col: col + image_res] = 0
-                    except:
-                        finding_dur=False
-                durations.append(d)
-
-                # moves pixel pointer past the current note
-                pixel += image_res
-            pixel+=1
-        col += image_res
-
-    score["pitch"] = pitches
-    score["amps"] = amplitudes
-    score["dur"] = durations
-    score["start"] = starts
-    # print("p", pitches)
-    # print("a", amplitudes)
-    # print("d", durations)
-    # print("s", starts)
+def image_to_midi(paths,image_res=4,filename="midi",upper=127,lower=8,midi=None,verbose=False):
+    if isinstance(paths, str):
+        paths = [paths]
+        print(paths)
 
     notes = []
-    i = 0
-    for pitch in pitches:
-        n = note.Note(pitch,quarterLength=durations[i])
-        n.storedInstrument = instrument.Piano()
-        n.offset = starts[i]
-        notes.append(n)
-        i+=1
+    for p ,path in enumerate(paths):
+        scale = 4
+        instrument_name = path.split("\\")[-1].replace(".png", "")
+        if verbose:
+            print("Scoring_____")
+            print("Instrument piece:", instrument_name)
+
+        score = {}
+        pitches = []
+        amplitudes = []
+        durations = []
+        starts = []
+
+        with Image.open(path) as image:
+            pixels = np.frombuffer(image.tobytes(), dtype=np.uint8)
+            pixels = pixels.reshape((image.size[1], image.size[0]))
+
+
+        x = 0
+        col = 0
+        while col < pixels.shape[1]:
+            pixel = 0
+            while pixel < len(pixels[:,col]):
+                if pixels[pixel,col] > 0:
+                    starts.append(col/image_res/scale)
+                    amplitudes.append(pixels[pixel,col]/255)
+
+                    # downscales the pitch back down using the image resolution
+                    pitch = (pixel+image_res/2)/image_res
+                    pitches.append(pitch)
+
+                    # if x == 0:
+                    #     print("px:",pixels[:,col])
+                    #     print("s:",col/image_res/scale)
+                    #     print("a:",pixels[pixel,col]/255)
+                    #     print("d?:",pixels[pixel,col:col+10])
+                    #     print("cur:",pixels[pixel,col])
+                    #     print("nex:",pixels[pixel,col+1])
+                    #     x+=1
+
+                    d=1
+                    finding_dur = True
+                    while finding_dur:
+                        try:
+                            if pixels[pixel, col + 1] == pixels[pixel, col]:
+                                pixels[pixel, col + 1] = 0
+                                d+=1
+                            else:
+                                finding_dur=False
+                                pixels[pixel, col: col + image_res] = 0
+                        except:
+                            finding_dur=False
+                    durations.append(d)
+
+                    # moves pixel pointer past the current note
+                    pixel += image_res
+                pixel+=1
+            col += image_res
+
+        score["pitch"] = pitches
+        score["amps"] = amplitudes
+        score["dur"] = durations
+        score["start"] = starts
+        # print("p", pitches)
+        # print("a", amplitudes)
+        # print("d", durations)
+        # print("s", starts)
+
+
+        i = 0
+        for pitch in pitches:
+            n = note.Note(pitch,quarterLength=durations[i])
+            if "piano" in path.lower() or "synth" in path.lower() or "strings" in path.lower():
+                n.storedInstrument = instrument.Piano()
+            if "drums" in path.lower() or "drum" in path.lower() or "percussion" in path.lower():
+                n.storedInstrument = instrument.Percussion()
+            if "guitar" in path.lower():
+                n.storedInstrument = instrument.Guitar()
+            if "bass" in path.lower():
+                n.storedInstrument = instrument.Bass()
+            n.offset = starts[i]
+            notes.append(n)
+            i+=1
 
     midi_stream = stream.Stream(notes)
-    # tem = tempo.MetronomeMark(95)
-    # tem.setQuarterBPM(95)
-    # midi_stream.append(tem)
-    # midi_stream.append(meter.TimeSignature())
-    #
-    # print(midi_stream.timeSignature)
-    # midi_stream.quarterLength = 95 #tempo.MetronomeMark(95)
-    # print(midi_stream.quarterLength)
-    print("Writing midi...")
-    midi_stream.write('midi', fp=path.split("/")[-1].replace(".png", ".mid"))
-    print("midi written")
+        # tem = tempo.MetronomeMark(95)
+        # tem.setQuarterBPM(95)
+        # midi_stream.append(tem)
+        # midi_stream.append(meter.TimeSignature())
+        #
+        # print(midi_stream.timeSignature)
+        # midi_stream.quarterLength = 95 #tempo.MetronomeMark(95)
+        # print(midi_stream.quarterLength)
+
+    if verbose:
+        print("Writing midi...")
+
+    if not filename.endswith(".mid"):
+        filename+=".mid"
+    foldername = path.split("/")[0]+"/"
+    #filename = path.split("/")[-1].replace(".png", ".mid")
+    print(foldername + filename)
+    midi_stream.write('midi', fp=foldername+filename)
+    if verbose:
+        print("midi written")
     return score
 
 
@@ -127,8 +153,12 @@ def run_test(artist="AC_DC", song="Back_In_Black.1",ir=2):
     print("Image resolution:",ir)
     filename = artist+"\\"+song+".mid"
     path = "C:\\Users\\Connor\\PycharmProjects\\MusicGeneration\\TrainingData\\Music(old)\\"+filename
-    midi_to_image.midi_to_image(path,image_res=ir,verbose=True,dest_path= r'C:\Users\Connor\PycharmProjects\MusicGeneration\ACDCTest',specific_inst="Electric Guitar")
+    midi_to_image.midi_to_image(path,image_res=ir,verbose=False,dest_path= r'C:\Users\Connor\PycharmProjects\MusicGeneration\ACDCTest',specific_inst="Electric Guitar")
     folder_path = r"ACDCTest/"
-    image_to_song(folder_path,image_res=ir,verbose=True)
+    #image_to_song(folder_path,image_res=ir,verbose=True)
+    images = [folder_path+im for im in os.listdir("ACDCTest") if ".png" in im]
+    print(images)
+    image_to_midi(images,filename="BIB",verbose=True)
     print("_____End of test_____")
 
+run_test()
