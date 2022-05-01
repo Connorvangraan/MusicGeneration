@@ -25,7 +25,16 @@ def updateNotes(newNotes,prevNotes):
     return res
 
 
-def image_to_midi(paths,image_res=4,filename="midi",upper=127,lower=8,midi=None,verbose=False):
+def prep_image(pixels, threshold=1):
+    print(pixels.shape)
+    for i in range(pixels.shape[0]):
+        for j in range(pixels.shape[1]):
+            if pixels[i][j] < threshold:
+                pixels[i][j] = 0
+    return pixels
+
+
+def image_to_midi(paths,image_res=1,filename="midi",upper=127,lower=8,midi=None,verbose=False):
     if isinstance(paths, str):
         paths = [paths]
         print(paths)
@@ -48,7 +57,10 @@ def image_to_midi(paths,image_res=4,filename="midi",upper=127,lower=8,midi=None,
             pixels = np.frombuffer(image.tobytes(), dtype=np.uint8)
             pixels = pixels.reshape((image.size[1], image.size[0]))
 
-
+        for col in pixels:
+            print(col)
+        print(pixels.shape)
+        #pixels = prep_image(pixels)
         x = 0
         col = 0
         while col < pixels.shape[1]:
@@ -101,24 +113,44 @@ def image_to_midi(paths,image_res=4,filename="midi",upper=127,lower=8,midi=None,
 
 
         i = 0
+
+        part = stream.Part()
+        part.insert(instrument.BassDrum())
         for pitch in pitches:
-            n = note.Note(pitch,quarterLength=durations[i])
-            if "piano" in path.lower() or "synth" in path.lower() or "strings" in path.lower():
-                n.storedInstrument = instrument.Piano()
-            if "drums" in path.lower() or "drum" in path.lower() or "percussion" in path.lower():
-                n.storedInstrument = instrument.Percussion()
-            if "guitar" in path.lower():
-                n.storedInstrument = instrument.Guitar()
-            if "bass" in path.lower():
-                n.storedInstrument = instrument.Bass()
-            n.offset = starts[i]
+            n = note.Note(pitch,quarterLength=durations[i],channel=9)
+            print(n.storedInstrument)
+            #print(n.show())
+            print(n.measureNumber)
+            print(n.expressions)
+            print(n.classes)
+            print(n.id)
+            print()
+            part.append(n)
+            # if "piano" in path.lower() or "synth" in path.lower() or "strings" in path.lower():
+            #     n.storedInstrument = instrument.Piano()
+            # if "drums" in path.lower() or "drum" in path.lower() or "percussion" in path.lower():
+            #     #n.storedInstrument = instrument.Woodblock()
+            #     part.append(n)
+            #     #print(n.getInstrument())
+            # if "guitar" in path.lower():
+            #     n.storedInstrument = instrument.Guitar()
+            #
+            # if "bass" in path.lower():
+            #     n.storedInstrument = instrument.Bass()
+            n.offset = starts[i]#/2
             notes.append(n)
             i+=1
+        #part.append(measure)
+    #midi_stream = stream.Stream(notes)
+    midi_stream = stream.Score()
+    midi_stream.insert(0,part)
+    print(midi_stream.beatDuration)
+    #midi_stream = stream.Stream(part)
+    print(midi_stream.getInstruments())
+    tem = tempo.MetronomeMark(50)
+    tem.setQuarterBPM(50)
+    midi_stream.append(tem)
 
-    midi_stream = stream.Stream(notes)
-        # tem = tempo.MetronomeMark(95)
-        # tem.setQuarterBPM(95)
-        # midi_stream.append(tem)
         # midi_stream.append(meter.TimeSignature())
         #
         # print(midi_stream.timeSignature)
@@ -161,4 +193,45 @@ def run_test(artist="AC_DC", song="Back_In_Black.1",ir=2):
     image_to_midi(images,filename="BIB",verbose=True)
     print("_____End of test_____")
 
-run_test()
+# run_test()
+import cv2
+
+
+
+
+def load_generated_images(paths, threshhold=73):
+    generated_paths = []
+    for path in paths:
+        print(path)
+        pixels = np.asarray(Image.open(path))
+        #print(pixels.shape)
+        pixels = np.delete(pixels, 1, 2)
+        pixels = np.delete(pixels, 1, 2)
+        #print(pixels.shape)
+        pixels = pixels.reshape((50, 50))  # /255
+
+        for i in range(pixels.shape[0]):
+            for j in range(pixels[i].shape[0]):
+                if pixels[i][j] < threshhold:
+                    pixels[i][j] = 0
+
+        for row in pixels:
+            print(row)
+        img2 = Image.fromarray(pixels)
+        img2.show()
+
+        shift_row = np.zeros((38, pixels.shape[1]))
+        pixels = np.vstack([shift_row, pixels])
+        print(pixels.shape)
+        f = "GeneratedMusic/drumtest.bmp"
+        status = cv2.imwrite(f, pixels)
+        generated_paths.append(f)
+
+    image_to_midi(generated_paths)
+
+
+
+
+path = ["GeneratedImages/drums0.bmp"]
+load_generated_images(path)
+
