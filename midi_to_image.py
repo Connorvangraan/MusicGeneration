@@ -270,7 +270,7 @@ def find_music_qualities(midipath):
         #part.show()
 
 
-midipath = r"TrainingData/Music(old)/AC_DC/Back_In_Black.1.mid"
+#midipath = r"TrainingData/Music(old)/AC_DC/Back_In_Black.1.mid"
 
 # find_music_qualities(midipath)
 #midi_to_image(midipath, dest_path="ACDCTest", verbose=True)

@@ -1,18 +1,15 @@
-import gzip
-import shutil
-
-import image_to_midi, midi_to_image
-import glob
+import midi_to_image
+import re
 import os
 from zipfile import ZipFile
 from pathlib import Path
-#image_to_midi.run_test()
-
-#path = r"C:\Users\Connor\PycharmProjects\MusicGeneration\TrainingData\Music(old)\2_Brothers_on_the_4th_Floor\Come_Take_My_Hand.mid"
-# path = r"C:\Users\Connor\PycharmProjects\MusicGeneration\TrainingData\Music(old)\AC_DC\Back_In_Black.1.mid"
-#midi_to_image.midi_to_image(path,dest_path=dp,specific_inst="Drum")
 
 def remove_folder(path):
+    """
+    Deletes the folder at path
+    :param path: string path of directory to delete
+    :return:
+    """
     folders = []
     for subdir, dirs, files in os.walk(path):
         folders.extend(dirs)
@@ -83,7 +80,7 @@ def create_drum_images_zipped(path, dest):
 
     print(count,"files processed out of",total_count)
 
-import re
+
 
 def create_images(path, dest,instruments=[]):
     midis = []
@@ -173,34 +170,30 @@ def create_image_dataset(path, dest, zipname, instruments):
     zipObj.close()
 
 #path = "TrainingData/Music(old)"
-path = r"D:\MusicGenTrainingData\lmd_matched"
 # dest = "DrumTracksBig"
 # path = 'TrainingData/800000_Drum_Percussion_MIDI_Archive[6_19_15].zip'
 # create_drum_images_zipped(path, dest)
 
-bass = True
-guitar = False
-synth = False
-
-if bass:
+def generate_dataset(t):
     path = r"D:\MusicGenTrainingData\lmd_matched"
-    dest = "BassTracks"
-    instruments = ["bass"]
-    create_image_dataset(path, dest, "basstracks.zip", instruments)
-    print("Images generated:",len(os.listdir(dest)))
+    if t == "bass":
+        dest = "BassTracks"
+        instruments = ["bass"]
+        create_image_dataset(path, dest, "basstracks.zip", instruments)
+        print("Images generated:",len(os.listdir(dest)))
 
 
-if guitar:
-    path = r"D:\MusicGenTrainingData\lmd_matched"
-    dest = "GuitarTracks"
-    instruments = ["guitar","strings"]
-    create_image_dataset(path, dest, "guitartracks.zip", instruments)
-    print("Images generated:", len(os.listdir(dest)))
+    if t == "guitar":
+        path = r"D:\MusicGenTrainingData\lmd_matched"
+        instruments = ["guitar","strings"]
+        create_image_dataset(path, dest, "guitartracks.zip", instruments)
+        print("Images generated:", len(os.listdir(dest)))
 
 
-if synth:
-    path = r"D:\MusicGenTrainingData\lmd_matched"
-    dest = "SynthTracks"
-    instruments = ["synth","keyboard", "piano"]
-    create_image_dataset(path, dest, "synthtracks.zip", instruments)
-    print("Images generated:", len(os.listdir(dest)))
+    if t == "synth":
+        dest = "SynthTracks"
+        instruments = ["synth","keyboard", "piano"]
+        create_image_dataset(path, dest, "synthtracks.zip", instruments)
+        print("Images generated:", len(os.listdir(dest)))
+
+generate_dataset(input("Dataset type to generate: "))
